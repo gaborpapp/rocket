@@ -138,12 +138,12 @@ void sync_destroy_device(struct sync_device *d)
 static int get_track_data(struct sync_device *d, struct sync_track *t)
 {
 	int i;
-	void *fp = d->io_cb.open(sync_track_path(d->base, t->name), "rb");
+	FILE *fp = d->io_cb.open(sync_track_path(d->base, t->name), "rb");
 	if (!fp)
 		return -1;
 
 	d->io_cb.read(&t->num_keys, sizeof(size_t), 1, fp);
-	t->keys = malloc(sizeof(struct track_key) * t->num_keys);
+	t->keys = (struct track_key *)malloc(sizeof(struct track_key) * t->num_keys);
 	if (!t->keys)
 		return -1;
 
