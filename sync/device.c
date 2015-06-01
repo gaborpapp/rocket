@@ -172,7 +172,7 @@ static int save_track(const struct sync_track *t, const char *path)
 	fwrite(&t->num_keys, sizeof(size_t), 1, fp);
 	for (i = 0; i < (int)t->num_keys; ++i) {
 		char type = (char)t->keys[i].type;
-		fwrite(&t->keys[i].row, sizeof(size_t), 1, fp);
+		fwrite(&t->keys[i].row, sizeof(int), 1, fp);
 		fwrite(&t->keys[i].value, sizeof(float), 1, fp);
 		fwrite(&type, sizeof(char), 1, fp);
 	}
