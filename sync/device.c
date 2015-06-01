@@ -94,7 +94,7 @@ void sync_set_io_cb(struct sync_device *d, struct sync_io_cb *cb)
 
 struct sync_device *sync_create_device(const char *base)
 {
-	struct sync_device *d = malloc(sizeof(*d));
+	struct sync_device *d = (sync_device *)malloc(sizeof(*d));
 	if (!d)
 		return NULL;
 

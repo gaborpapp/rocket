@@ -20,13 +20,13 @@ int sync_create_track(struct sync_data *d, const char *name)
 	struct sync_track *t;
 	assert(sync_find_track(d, name) < 0);
 
-	t = malloc(sizeof(*t));
+	t = (sync_track *)malloc(sizeof(*t));
 	t->name = strdup(name);
 	t->keys = NULL;
 	t->num_keys = 0;
 
 	d->num_tracks++;
-	d->tracks = realloc(d->tracks, sizeof(d->tracks[0]) * d->num_tracks);
+	d->tracks = (sync_track **)realloc(d->tracks, sizeof(d->tracks[0]) * d->num_tracks);
 	d->tracks[d->num_tracks - 1] = t;
 
 	return (int)d->num_tracks - 1;

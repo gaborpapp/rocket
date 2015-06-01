@@ -101,7 +101,7 @@ int sync_set_key(struct sync_track *t, const struct track_key *k)
 		if (!tmp)
 			return -1;
 		t->num_keys++;
-		t->keys = tmp;
+		t->keys = (track_key *)tmp;
 		memmove(t->keys + idx + 1, t->keys + idx,
 		    sizeof(struct track_key) * (t->num_keys - idx - 1));
 	}
@@ -122,7 +122,7 @@ int sync_del_key(struct sync_track *t, int pos)
 	if (t->num_keys != 1 && !tmp)
 		return -1;
 	t->num_keys--;
-	t->keys = tmp;
+	t->keys = (track_key *)tmp;
 	return 0;
 }
 #endif
