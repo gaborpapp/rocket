@@ -187,7 +187,7 @@ static inline char *rocket_strdup(const char *str)
 
 struct sync_device *sync_create_device(const char *base)
 {
-	struct sync_device *d = (sync_device *)malloc(sizeof(*d));
+	struct sync_device *d = (struct sync_device *)malloc(sizeof(*d));
 	if (!d)
 		return NULL;
 
@@ -204,9 +204,9 @@ struct sync_device *sync_create_device(const char *base)
 	d->row = -1;
 	d->sock = INVALID_SOCKET;
 #else
-	d->io_cb.open = (void *(*)(const char *, const char *))fopen;
-	d->io_cb.read = (size_t (*)(void *, size_t, size_t, void *))fread;
-	d->io_cb.close = (int (*)(void *))fclose;
+	d->io_cb.open = fopen;
+	d->io_cb.read = fread;
+	d->io_cb.close = fclose;
 #endif
 
 	return d;
@@ -447,13 +447,13 @@ static int create_track(struct sync_device *d, const char *name)
 	struct sync_track *t;
 	assert(find_track(d, name) < 0);
 
-	t = malloc(sizeof(*t));
+	t = (struct sync_track *)malloc(sizeof(*t));
 	t->name = strdup(name);
 	t->keys = NULL;
 	t->num_keys = 0;
 
 	d->num_tracks++;
-	d->tracks = realloc(d->tracks, sizeof(d->tracks[0]) * d->num_tracks);
+	d->tracks = (struct sync_track **)realloc(d->tracks, sizeof(d->tracks[0]) * d->num_tracks);
 	d->tracks[d->num_tracks - 1] = t;
 
 	return (int)d->num_tracks - 1;
