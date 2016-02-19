@@ -14,11 +14,24 @@
 #include "Commands.h"
 #include "MinecraftiaFont.h"
 #include "Window.h"
-#include "../../sync/sync.h"
-#include "../../sync/base.h"
-#include "../../sync/data.h"
+#include "../../lib/sync.h"
+#include "../../lib/base.h"
 #include <emgui/Emgui.h>
+#if defined(_WIN32)
+	#include <winsock2.h>
+#else
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+#endif
 
+enum {
+	SET_KEY = 0,
+	DELETE_KEY = 1,
+	GET_TRACK = 2,
+	SET_ROW = 3,
+	PAUSE = 4,
+	SAVE_TRACKS = 5
+};
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void updateNeedsSaving();
@@ -140,7 +153,7 @@ void setMostRecentFile(const text_t* filename)
 
 static inline struct sync_track** getTracks()
 {
-	return s_editorData.trackData.syncData.tracks;
+	return s_editorData.trackData.syncTracks;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,7 +188,7 @@ static inline int getActiveTrack()
 
 static inline int getTrackCount()
 {
-	return s_editorData.trackData.syncData.num_tracks;
+	return (int)s_editorData.trackData.num_syncTracks;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -280,7 +293,7 @@ void Editor_create()
 {
 	int id;
 	Emgui_create();
-	id = Emgui_loadFontBitmap(g_minecraftiaFont, g_minecraftiaFontSize, EMGUI_LOCATION_MEMORY, 32, 128, g_minecraftiaFontLayout);
+	id = Emgui_loadFontBitmap((char*)g_minecraftiaFont, g_minecraftiaFontSize, EMGUI_LOCATION_MEMORY, 32, 128, g_minecraftiaFontLayout);
 
 	if (!RemoteConnection_createListner())
 	{
@@ -570,21 +583,24 @@ static void copySelection(int row, int track, int selectLeft, int selectRight, i
 	}
 
 	free(s_copyData.entries);
-	entry = s_copyData.entries = malloc(sizeof(CopyEntry) * copy_count);
-
-	for (track = selectLeft; track <= selectRight; ++track) 
+	if (copy_count != 0)
 	{
-		struct sync_track* t = tracks[track];
-		for (row = selectTop; row <= selectBottom; ++row) 
-		{
-			int idx = sync_find_key(t, row);
-			if (idx < 0) 
-				continue;
+		entry = s_copyData.entries = malloc(sizeof(CopyEntry) * copy_count);
 
-			entry->track = track - selectLeft;
-			entry->keyFrame = t->keys[idx];
-			entry->keyFrame.row -= selectTop; 
-			entry++;
+		for (track = selectLeft; track <= selectRight; ++track)
+		{
+			struct sync_track* t = tracks[track];
+			for (row = selectTop; row <= selectBottom; ++row)
+			{
+				int idx = sync_find_key(t, row);
+				if (idx < 0)
+					continue;
+
+				entry->track = track - selectLeft;
+				entry->keyFrame = t->keys[idx];
+				entry->keyFrame.row -= selectTop;
+				entry++;
+			}
 		}
 	}
 
@@ -865,7 +881,7 @@ static int processCommands()
 
 				// setup remap and send the keyframes to the demo
 				RemoteConnection_mapTrackName(trackName);
-				RemoteConnection_sendKeyFrames(trackName, s_editorData.trackData.syncData.tracks[serverIndex]);
+				RemoteConnection_sendKeyFrames(trackName, s_editorData.trackData.syncTracks[serverIndex]);
 				TrackData_linkTrack(serverIndex, trackName, &s_editorData.trackData);
 
 				s_editorData.trackData.tracks[serverIndex].active = true;
@@ -944,9 +960,9 @@ static void setWindowTitle(const text_t* path, bool needsSave)
 	text_t windowTitle[4096];
 #if defined(_WIN32)
 	if (needsSave)
-		swprintf_s(windowTitle, sizeof(windowTitle), L"RocketEditor" EDITOR_VERSION L"- (%s) *", path);
+		swprintf_s(windowTitle, sizeof_array(windowTitle), L"RocketEditor" EDITOR_VERSION L"- (%s) *", path);
 	else
-		swprintf_s(windowTitle, sizeof(windowTitle), L"RocketEditor" EDITOR_VERSION L" - (%s)", path);
+		swprintf_s(windowTitle, sizeof_array(windowTitle), L"RocketEditor" EDITOR_VERSION L" - (%s)", path);
 #else
 	if (needsSave)
 		sprintf(windowTitle, "RocketEditor" EDITOR_VERSION "- (%s) *", path);
@@ -1389,19 +1405,19 @@ static void enterCurrentValue(struct sync_track* track, int activeTrack, int row
 	if (idx < 0)
 		idx = -idx - 1;
 
-    key.row = rowPos;
-   
-    if (track->num_keys > 0)
-    {
-        key.value = (float)sync_get_val(track, rowPos);
-        key.type = track->keys[emaxi(idx - 1, 0)].type;
-    }
-    else
-    {
-        key.value = 0.0f;
-        key.type = 0;
-    }
-	
+	key.row = rowPos;
+
+	if (track->num_keys > 0)
+	{
+		key.value = (float)sync_get_val(track, rowPos);
+		key.type = track->keys[emaxi(idx - 1, 0)].type;
+	}
+	else
+	{
+		key.value = 0.0f;
+		key.type = 0;
+	}
+
 	Commands_addOrUpdateKey(activeTrack, &key);
 	updateNeedsSaving();
 }
@@ -1621,7 +1637,7 @@ static void onPrevNextKey(bool prevKey, enum Selection selection)
 
 		if (idx < 0)
 			row = track->keys[0].row;
-		else if (idx > (int)track->num_keys - 2)
+		else if (idx > track->num_keys - 2)
 			row = track->keys[track->num_keys - 1].row;
 		else
 			row = track->keys[idx + 1].row;
@@ -1982,4 +1998,3 @@ bool Editor_keyDown(int key, int keyCode, int modifiers)
 
 	return true;
 }
-

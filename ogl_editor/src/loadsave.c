@@ -3,10 +3,10 @@
 #include "TrackData.h"
 #include "../external/mxml/mxml.h"
 #include "RemoteConnection.h"
-#include "../../sync/data.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <emgui/Types.h>
+#include <assert.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -48,38 +48,38 @@ static void parseXml(mxml_node_t* rootNode, TrackData* trackData)
 
 				if (!strcmp("bookmark", element_name))
 				{
-                    const char* row = mxmlElementGetAttr(node, "row");
+					const char* row = mxmlElementGetAttr(node, "row");
 
-                    if (row)
+					if (row)
 						TrackData_toggleBookmark(trackData, atoi(row));
 				}
 
 				if (!strcmp("loopmark", element_name))
 				{
-                    const char* row = mxmlElementGetAttr(node, "row");
+					const char* row = mxmlElementGetAttr(node, "row");
 
-                    if (row)
+					if (row)
 						TrackData_toggleLoopmark(trackData, atoi(row));
 				}
 
 				if (!strcmp("group", element_name))
 				{
-                    s_foldedGroupNames[foldedGroupCount++] = strdup(mxmlElementGetAttr(node, "name"));
+					s_foldedGroupNames[foldedGroupCount++] = strdup(mxmlElementGetAttr(node, "name"));
 				}
 
 				if (!strcmp("tracks", element_name))
 				{
-                    const char* start_row = mxmlElementGetAttr(node, "startRow");
-                    const char* end_row = mxmlElementGetAttr(node, "endRow");
-                    const char* hlrow_step = mxmlElementGetAttr(node, "highlightRowStep");
+					const char* start_row = mxmlElementGetAttr(node, "startRow");
+					const char* end_row = mxmlElementGetAttr(node, "endRow");
+					const char* hlrow_step = mxmlElementGetAttr(node, "highlightRowStep");
 
-                    if (start_row)
+					if (start_row)
 						trackData->startRow = atoi(start_row);
 
-                    if (end_row)
+					if (end_row)
 						trackData->endRow = atoi(end_row);
 
-                    if (hlrow_step)
+					if (hlrow_step)
 						trackData->highlightRowStep = atoi(hlrow_step);
 				}
 
@@ -91,17 +91,17 @@ static void parseXml(mxml_node_t* rootNode, TrackData* trackData)
 					Track* t;
 
 					// TODO: Create the new track/channel here
-			
-                    const char* track_name = mxmlElementGetAttr(node, "name");
-                    const char* color_text = mxmlElementGetAttr(node, "color");
-                    const char* folded_text = mxmlElementGetAttr(node, "folded");
-                    const char* mute_key_count_text = mxmlElementGetAttr(node, "muteKeyCount");
-                    const char* mute_value_text = mxmlElementGetAttr(node, "muteValue");
-                    
+
+					const char* track_name = mxmlElementGetAttr(node, "name");
+					const char* color_text = mxmlElementGetAttr(node, "color");
+					const char* folded_text = mxmlElementGetAttr(node, "folded");
+					const char* mute_key_count_text = mxmlElementGetAttr(node, "muteKeyCount");
+					const char* mute_value_text = mxmlElementGetAttr(node, "muteValue");
+
 					track_index = TrackData_createGetTrack(trackData, track_name);
 
 					t = &trackData->tracks[track_index];
-					track = trackData->syncData.tracks[track_index];
+					track = trackData->syncTracks[track_index];
 
 					if (!color_text && t->color == 0)
 					{
@@ -131,11 +131,11 @@ static void parseXml(mxml_node_t* rootNode, TrackData* trackData)
 						}
 					}
 
-                    if (mute_value_text)
+					if (mute_value_text)
 						muteValue = (float)atof(mute_value_text);
 
 					// If we already have this track loaded we delete all the existing keys
-					
+
 					for (i = 0; i < track->num_keys; ++i)
 					{
 						int row = track->keys[i].row;
@@ -162,7 +162,7 @@ static void parseXml(mxml_node_t* rootNode, TrackData* trackData)
 				}
 				else if (!strcmp("key", element_name))
 				{
-					struct sync_track* track = trackData->syncData.tracks[track_index];
+					struct sync_track* track = trackData->syncTracks[track_index];
 					Track* t = &trackData->tracks[track_index];
 
 					const char* row = mxmlElementGetAttr(node, "row"); 
@@ -203,15 +203,15 @@ static void parseXml(mxml_node_t* rootNode, TrackData* trackData)
 	{
 		for (g = 0; g < trackData->groupCount; ++g)
 		{
-            Group* group = &trackData->groups[g];
-            const char* groupName = group->name;
-            const char* foldedName = s_foldedGroupNames[i];
-         
-            // groups with 1 track is handled as non-grouped
-            
-            if (group->trackCount == 1)
-                continue;
-            
+			Group* group = &trackData->groups[g];
+			const char* groupName = group->name;
+			const char* foldedName = s_foldedGroupNames[i];
+
+			// groups with 1 track is handled as non-grouped
+
+			if (group->trackCount == 1)
+				continue;
+
 			if (!strcmp(foldedName, groupName))
 			{
 				trackData->groups[g].folded = true;
@@ -338,7 +338,7 @@ static void saveTrackData(mxml_node_t* track, struct track_key* keys, int count)
 	for (i = 0; i < count; ++i) 
 	{
 		mxml_node_t* key = mxmlNewElement(track, "key");
-		setElementInt(key, "row", "%d", (int)keys[i].row);
+		setElementInt(key, "row", "%d", keys[i].row);
 		setElementFloat(key, "value", keys[i].value);
 		setElementInt(key, "interpolation", "%d", (int)keys[i].type);
 	}
@@ -354,7 +354,6 @@ int LoadSave_saveRocketXML(const text_t* path, TrackData* trackData)
 
 	FILE* fp;
 	size_t p;
-	struct sync_data* sync_data = &trackData->syncData;
 	int* bookmarks = trackData->bookmarks;
 	int* loopmarks = trackData->loopmarks;
 
@@ -410,9 +409,9 @@ int LoadSave_saveRocketXML(const text_t* path, TrackData* trackData)
 	setElementInt(tracks, "endRow", "%d", trackData->endRow); 
 	setElementInt(tracks, "highlightRowStep", "%d", trackData->highlightRowStep); 
 
-	for (p = 0; p < sync_data->num_tracks; ++p) 
+	for (p = 0; p < trackData->num_syncTracks; ++p)
 	{
-		const struct sync_track* t = sync_data->tracks[p];
+		const struct sync_track* t = trackData->syncTracks[p];
 		mxml_node_t* track = mxmlNewElement(tracks, "track");
 
 		bool isMuted = trackData->tracks[p].muteBackup ? true : false; 
@@ -429,7 +428,7 @@ int LoadSave_saveRocketXML(const text_t* path, TrackData* trackData)
 		}
 		else
 		{
-			saveTrackData(track, t->keys, (int)t->num_keys);
+			saveTrackData(track, t->keys, t->num_keys);
 		}
 	}
 
@@ -439,10 +438,10 @@ int LoadSave_saveRocketXML(const text_t* path, TrackData* trackData)
 	fp = fopen(path, "wt");
 #endif
 
-    mxmlSaveFile(xml, fp, whitespaceCallback);
-    fclose(fp);
+	mxmlSaveFile(xml, fp, whitespaceCallback);
+	fclose(fp);
 
-    return true;
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,4 +453,3 @@ int LoadSave_saveRocketXMLDialog(text_t* path, TrackData* trackData)
 
 	return LoadSave_saveRocketXML(path, trackData);
 }
-

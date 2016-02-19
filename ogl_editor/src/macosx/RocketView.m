@@ -7,8 +7,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <Carbon/Carbon.h>
 
-NSOpenGLContext* g_context = 0;
-NSWindow* g_window = 0;
+NSOpenGLContext* g_context = nil;
+NSWindow* g_window = nil;
 
 void Window_setTitle(const char* title);
 
@@ -52,13 +52,14 @@ void Window_setTitle(const char* title);
 	if (self == nil)
 		return nil;
 
-	NSOpenGLPixelFormatAttribute attributes[4];
-
-	attributes[0] = NSOpenGLPFADoubleBuffer;
-	attributes[1] = 0;
+	NSOpenGLPixelFormatAttribute attributes[] = {
+			NSOpenGLPFADoubleBuffer,
+			0
+	};
 
 	NSOpenGLPixelFormat* format = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
 	oglContext = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+	[format release];
 	[oglContext makeCurrentContext];
 
 	g_context = oglContext;
@@ -148,23 +149,23 @@ static int getModifierFlags(int flags)
 			case NSDownArrowFunctionKey: keyCode = EMGUI_KEY_ARROW_DOWN; break;
 		}
 	}
-    else
-    {
-        switch ([theEvent keyCode])
-        {
-            case KEY_TAB : keyCode = EMGUI_KEY_TAB; break;
-            case KEY_DELETE : keyCode = EMGUI_KEY_BACKSPACE; break;
-            case KEY_RETURN : keyCode = EMGUI_KEY_ENTER; break;
-            case KEY_ESCAPE : keyCode = EMGUI_KEY_ESC; break;
+	else
+	{
+		switch ([theEvent keyCode])
+		{
+			case KEY_TAB : keyCode = EMGUI_KEY_TAB; break;
+			case KEY_DELETE : keyCode = EMGUI_KEY_BACKSPACE; break;
+			case KEY_RETURN : keyCode = EMGUI_KEY_ENTER; break;
+			case KEY_ESCAPE : keyCode = EMGUI_KEY_ESC; break;
 			case NSPageDownFunctionKey: keyCode = EMGUI_KEY_PAGE_DOWN; break;
 			case NSPageUpFunctionKey: keyCode = EMGUI_KEY_PAGE_UP; break;
-        }
-    }
+		}
+	}
 
 	Emgui_sendKeyinput(keyCode, specialKeys);
 
 	if (!Editor_keyDown(keyCode, [theEvent keyCode], specialKeys))
-    	[super keyDown:theEvent];
+		[super keyDown:theEvent];
 
 	Editor_update();
 }
@@ -173,16 +174,19 @@ static int getModifierFlags(int flags)
 
 - (BOOL)acceptsFirstResponder 
 {
-    return YES;
+	return YES;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
--(void) viewWillMoveToWindow:(NSWindow *)newWindow 
+-(void) viewWillMoveToWindow:(NSWindow *)newWindow
 {
-    NSTrackingArea* trackingArea = [[NSTrackingArea alloc] initWithRect:[self frame] 
-    	options: (NSTrackingMouseMoved | NSTrackingActiveAlways) owner:self userInfo:nil];
-    [self addTrackingArea:trackingArea];
+	NSTrackingArea* trackingArea = [[NSTrackingArea alloc] initWithRect:[self frame]
+	                                                            options: (NSTrackingMouseMoved | NSTrackingActiveAlways)
+	                                                              owner:self
+	                                                           userInfo:nil];
+	[self addTrackingArea:trackingArea];
+	[trackingArea release];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,43 +252,40 @@ static int getModifierFlags(int flags)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
--(BOOL) isOpaque 
+-(BOOL) isOpaque
 {
-    return YES;
+	return YES;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CFStringRef createStringForKey(CGKeyCode keyCode)
 {
-    TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
-    CFDataRef layoutData =
-        TISGetInputSourceProperty(currentKeyboard,
-                                  kTISPropertyUnicodeKeyLayoutData);
+	TISInputSourceRef currentKeyboard = TISCopyCurrentKeyboardInputSource();
+	CFDataRef layoutData = TISGetInputSourceProperty(currentKeyboard, kTISPropertyUnicodeKeyLayoutData);
 
 	if (!layoutData)
 		return 0;
 
-    const UCKeyboardLayout *keyboardLayout =
-        (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
+	const UCKeyboardLayout *keyboardLayout = (const UCKeyboardLayout *)CFDataGetBytePtr(layoutData);
 
-    UInt32 keysDown = 0;
-    UniChar chars[4];
-    UniCharCount realLength;
+	UInt32 keysDown = 0;
+	UniChar chars[4];
+	UniCharCount realLength;
 
-    UCKeyTranslate(keyboardLayout,
-                   keyCode,
-                   kUCKeyActionDisplay,
-                   0,
-                   LMGetKbdType(),
-                   kUCKeyTranslateNoDeadKeysBit,
-                   &keysDown,
-                   sizeof(chars) / sizeof(chars[0]),
-                   &realLength,
-                   chars);
-    CFRelease(currentKeyboard);    
+	UCKeyTranslate( keyboardLayout,
+					keyCode,
+					kUCKeyActionDisplay,
+					0,
+					LMGetKbdType(),
+					kUCKeyTranslateNoDeadKeysBit,
+					&keysDown,
+					sizeof(chars) / sizeof(chars[0]),
+					&realLength,
+					chars );
+	CFRelease(currentKeyboard);
 
-    return CFStringCreateWithCharacters(kCFAllocatorDefault, chars, 1);
+	return CFStringCreateWithCharacters(kCFAllocatorDefault, chars, 1);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -297,7 +298,7 @@ CFStringRef createStringForKey(CGKeyCode keyCode)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static int s_characterToKeyCode[] =
+static CGKeyCode s_characterToKeyCode[] =
 {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0x27, // '''
@@ -384,11 +385,11 @@ NSString* convertKeyCodeToString(int key)
 			case EMGUI_KEY_BACKSPACE : return [NSString stringWithFormat:@"%C",(uint16_t)0x232b];
 			case EMGUI_KEY_TAB : return [NSString stringWithFormat:@"%C",(uint16_t)0x21e4]; 
 			case EMGUI_KEY_PAGE_UP : return [NSString stringWithFormat:@"%C",(uint16_t)0x21de]; 
-			case EMGUI_KEY_PAGE_DOWN : return [NSString stringWithFormat:@"%C",(uint16_t)0x21df]; 
+			case EMGUI_KEY_PAGE_DOWN : return [NSString stringWithFormat:@"%C",(uint16_t)0x21df];
 		}
 	}
 
-	return 0;
+	return nil;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,8 +409,8 @@ void buildSubMenu(NSMenu* menu, MenuDescriptor menuDesc[])
 		}
 		else if (desc->id == EDITOR_MENU_SUB_MENU)
 		{
-			MyMenuItem* newItem = [[MyMenuItem allocWithZone:[NSMenu menuZone]] initWithTitle:name action:NULL keyEquivalent:@""];
-			NSMenu* newMenu = [[NSMenu allocWithZone:[NSMenu menuZone]] initWithTitle:name];
+			MyMenuItem* newItem = [[MyMenuItem alloc] initWithTitle:name action:NULL keyEquivalent:@""];
+			NSMenu* newMenu = [[NSMenu alloc] initWithTitle:name];
 			[newItem setSubmenu:newMenu];
 			[newMenu release];
 			[menu addItem:newItem];
@@ -417,7 +418,7 @@ void buildSubMenu(NSMenu* menu, MenuDescriptor menuDesc[])
 		}
 		else
 		{
-			int mask = 0;
+			NSUInteger mask = 0;
 			MyMenuItem* newItem = [[MyMenuItem alloc] initWithTitle:name action:@selector(onMenuPress:) keyEquivalent:@""];
 			[newItem setTag:desc->id];
 
@@ -511,5 +512,3 @@ void Window_setTitle(const char* title)
 {
 	[g_window setTitle:[NSString stringWithUTF8String:title]];
 }
-
-

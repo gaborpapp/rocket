@@ -1,4 +1,4 @@
-/* Copyright (C) 2010 Erik Faye-Lund and Egbert Teeselink
+/* Copyright (C) 2010 Contributors
  * For conditions of distribution and use, see copyright notice in COPYING
  */
 
@@ -10,6 +10,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stddef.h>
 
 struct sync_device;
 struct sync_track;
