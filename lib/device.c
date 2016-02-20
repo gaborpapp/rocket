@@ -224,6 +224,12 @@ void sync_destroy_device(struct sync_device *d)
 	free(d->base);
 	free(d);
 
+#ifndef SYNC_PLAYER
+	if (d->sock != INVALID_SOCKET)
+		closesocket(d->sock);
+	d->sock = INVALID_SOCKET;
+#endif
+
 #if defined(USE_AMITCP) && !defined(SYNC_PLAYER)
 	if (socket_base) {
 		CloseLibrary(socket_base);
